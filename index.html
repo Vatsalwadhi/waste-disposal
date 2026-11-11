@@ -511,15 +511,8 @@ async function getEngine(){
 const ENGINE_NAMES={claudeai:"Claude vision", server:"Claude vision (server)", clip:"On-device AI (CLIP)"};
 getEngine().then(e=>{ $("engine").innerHTML=`Recognition: <b>${ENGINE_NAMES[e]}</b>${e==="clip"?" · free, runs on your device":""}`; });
 
-const CLIP_LABELS = {
-  plastic_bottle:"plastic bottle", glass_bottle:"glass bottle or glass jar", metal_can:"aluminium drink can or tin can",
-  cardboard:"cardboard box", paper:"newspaper, flyer or sheet of paper", tissue:"crumpled used tissue paper",
-  paper_cup:"disposable paper cup", food_container:"plastic food container or tub", foil_tray:"aluminium foil tray or crumpled foil",
-  carton:"milk or juice carton", plastic_bag:"plastic bag", snack_wrapper:"chips packet or candy wrapper", styrofoam:"styrofoam packaging",
-  food_scrap:"food scraps, fruit core or peel", battery:"battery cell", bulb:"light bulb or tube light",
-  medicine:"medicine tablets in a blister pack", e_waste:"phone, charger or electronic gadget", paint_can:"paint can",
-  sanitary:"diaper or sanitary pad", broken_glass:"shards of broken glass", textile:"old clothes or fabric",
-};
+// Several phrasings per item; their scores are summed. Tuned on the built-in samples.
+const CLIP_LABELS = {"plastic_bottle": ["clear plastic bottle","plastic water bottle","plastic juice or milk bottle"],"glass_bottle": ["glass bottle","brown glass beer bottle","green glass wine bottle","glass jar"],"metal_can": ["aluminium soda can","tin food can"],"cardboard": ["cardboard box","flattened cardboard"],"paper": ["newspaper","printed advertising flyer","sheet of office paper"],"tissue": ["crumpled used tissue","used paper napkin","paper towel"],"paper_cup": ["disposable paper coffee cup"],"food_container": ["plastic takeaway food container","plastic yogurt tub"],"foil_tray": ["aluminium foil tray","crumpled aluminium foil"],"carton": ["milk carton","juice tetra pak carton"],"plastic_bag": ["plastic carry bag","plastic film wrap"],"snack_wrapper": ["chips packet","candy wrapper","biscuit wrapper"],"styrofoam": ["styrofoam packaging"],"food_scrap": ["apple core","half-eaten apple","banana peel","fruit and vegetable peels","leftover food","eggshells"],"battery": ["AA battery","button cell battery"],"bulb": ["light bulb","tube light"],"medicine": ["blister pack of pills","medicine tablets strip","pills in a plastic blister","medicine bottle"],"e_waste": ["mobile phone","phone charger and cable","electronic gadget"],"paint_can": ["paint can"],"sanitary": ["diaper","sanitary pad"],"broken_glass": ["broken glass shards"],"textile": ["old t-shirt","pile of clothes"]};
 // Things outside the list, so CLIP has somewhere to put them instead of forcing a match.
 const CLIP_OTHER = {
   "cigarette lighter":{cat:"special", hazard:"flammable gas inside", why:"Lighters hold flammable gas; hand them to hazardous or special care collection."},
@@ -554,29 +547,33 @@ async function clipAnalyse(){
   const c=document.createElement("canvas"), s=Math.min(1,448/Math.max(baseImage.width,baseImage.height));
   c.width=Math.round(baseImage.width*s); c.height=Math.round(baseImage.height*s); c.getContext("2d").drawImage(baseImage,0,0,c.width,c.height);
   const img = T.RawImage.fromCanvas(c);
-  const itemKeys=Object.keys(CLIP_LABELS), otherKeys=Object.keys(CLIP_OTHER);
-  const labels=[...itemKeys.map(k=>CLIP_LABELS[k]), ...otherKeys];
+  const labels=[], owner=[];
+  for(const [k,arr] of Object.entries(CLIP_LABELS)) for(const l of arr){ labels.push(l); owner.push(k); }
+  for(const o of Object.keys(CLIP_OTHER)){ labels.push(o); owner.push("other:"+o); }
   const out = await pipe(img, labels, {hypothesis_template:"a photo of a {}"});
-  const top=out[0], key=itemKeys.find(k=>CLIP_LABELS[k]===top.label);
+  const agg={}; for(const x of out){ const k=owner[labels.indexOf(x.label)]; agg[k]=(agg[k]||0)+x.score; }
+  const ranked=Object.entries(agg).sort((a,b)=>b[1]-a[1]);
+  const [topKey, topScore]=ranked[0];
+  const bestItem=ranked.find(([k])=>!k.startsWith("other:"));
   const box=[0.06,0.06,0.94,0.94];
-  if(!key || top.score<0.22){
-    const other=CLIP_OTHER[top.label];
+  if(topKey.startsWith("other:") || topScore<0.2){
+    const otherName = topKey.startsWith("other:") ? topKey.slice(6) : null, other = otherName && CLIP_OTHER[otherName];
     let cat=other?.cat ?? null, why=other?.why || "";
     if(!other){
       const co=await pipe(img, Object.values(CLIP_CATS), {hypothesis_template:"a photo of {}"});
       cat=Object.keys(CLIP_CATS).find(k=>CLIP_CATS[k]===co[0].label); why="Closest waste type, judged from the photo alone.";
     }
-    return {item:"unknown", match:"weak", label: other&&cat!==null ? top.label.replace(/^./,c=>c.toUpperCase()) : (key? CLIP_LABELS[key].replace(/^./,c=>c.toUpperCase()) : ""),
-      confidence:top.score, residue:"none", box, guess_category:cat||"", guess_reason:why, hazard:other?.hazard||"", suggested_key:key||null};
+    return {item:"unknown", match:"weak", label: other && cat!==null ? otherName.replace(/^./,ch=>ch.toUpperCase()) : "",
+      confidence:topScore, residue:"none", box, guess_category:cat||"", guess_reason:why, hazard:other?.hazard||"",
+      suggested_key: bestItem && bestItem[1]>=0.12 ? bestItem[0] : null};
   }
-  let residue="none", pd=0;
+  const key=topKey; let residue="none", pd=0;
   if(ITEMS[key].check){
-    const phrase=CLIP_LABELS[key];
+    const phrase=CLIP_LABELS[key][0];
     const r=await pipe(img, [`clean ${phrase}`, `${phrase} with food stains and grease`], {hypothesis_template:"a photo of a {}"});
-    pd=r.find(x=>x.label.startsWith(phrase)||x.label.includes("grease"))?.score||0;
-    residue = pd>=0.8 ? "heavy" : pd>=0.6 ? "light" : "none";
+    pd=r.find(x=>x.label.includes("grease"))?.score||0;
   }
-  return {item:key, match: top.score>=0.4?"exact":"close", label:ITEMS[key].label, confidence:top.score, residue, residue_note:"", box, note:"",
+  return {item:key, match: topScore>=0.4?"exact":"close", label:ITEMS[key].label, confidence:topScore, residue, residue_note:"", box, note:"",
     guess_category:"", guess_reason:"", hazard: key==="battery"?"fire risk if crushed or punctured":"", pdirty:pd};
 }
 function blobToB64(b){ return new Promise((ok,no)=>{ const r=new FileReader(); r.onload=()=>ok(String(r.result).split(",")[1]); r.onerror=no; r.readAsDataURL(b); }); }
@@ -646,7 +643,9 @@ function isDirty(){
   if(current.source==="claude") return current.residue==="light" || current.residue==="heavy";
   if(current.source==="clip"){   // weaker model: let the stain map back it up
     const p=current.pixelScore||0, d=current.pdirty||0;
-    return d>=0.8 || (d>=0.6 && p>=0.04) || p>=RESIDUE_THRESHOLD;
+    // Both must agree: CLIP alone and the stain map alone are each fooled by printed pictures.
+    if(current.item==="paper") return false;     // flyers full of food photos fool both; use the toggle
+    return d>=0.55 && p>=0.04;
   }
   return (current.pixelScore||0) >= RESIDUE_THRESHOLD;
 }
@@ -723,7 +722,7 @@ function render(save){
     <details><summary>How this was decided</summary>
       <dl class="why">
         <dt>Item</dt><dd>${current.source==="claude"?"Recognised by Claude vision":current.source==="clip"?`Recognised on-device by CLIP (${Math.round((current.confidence||0)*100)}% score)`:"Chosen manually"}</dd>
-        ${it?.check?`<dt>Residue</dt><dd>${current.source==="claude"?`Claude sees <b>${esc(current.residue||"none")}</b> residue (deciding). `:""}Stain map: ${pct}% of the surface${current.source==="claude"?" (shown in red, for reference)":` (deciding; ${Math.round(RESIDUE_THRESHOLD*100)}% or more counts as dirty)`}<div class="meter"><i style="width:${Math.min(100,pct/(RESIDUE_THRESHOLD*100)*50)}%"></i></div></dd>`:""}
+        ${it?.check?`<dt>Residue</dt><dd>${current.source==="claude"?`Claude sees <b>${esc(current.residue||"none")}</b> residue (deciding). `:""}${current.source==="clip"?`On-device grease score ${Math.round((current.pdirty||0)*100)}%. `:""}Stain map: ${pct}% of the surface${current.source==="claude"?" (shown in red, for reference)":current.source==="clip"?" (both must agree: 55%+ grease score and 4%+ stained)":` (deciding; ${Math.round(RESIDUE_THRESHOLD*100)}% or more counts as dirty)`}<div class="meter"><i style="width:${Math.min(100,pct/(RESIDUE_THRESHOLD*100)*50)}%"></i></div></dd>`:""}
         <dt>Rule</dt><dd>${esc(REGIONS[region].name)}: ${esc(it?.label||"unknown")} · ${v.dirty?"contaminated":"clean"} → ${cat.label}</dd>
       </dl>
     </details>`;
