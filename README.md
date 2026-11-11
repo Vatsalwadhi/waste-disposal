@@ -2,7 +2,7 @@
 
 Point a camera at an item and get told which bin it goes in, and how to prepare it.
 
-**Live:** see the deployment link in the repo's About section.
+**Live:** https://vatsalwadhi.github.io/waste-disposal/
 
 ![flow](https://img.shields.io/badge/camera%20→%20recognise%20→%20check%20residue%20→%20local%20rules-1f7a4d)
 
