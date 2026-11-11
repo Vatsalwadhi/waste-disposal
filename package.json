@@ -1,0 +1,6 @@
+{
+  "name": "waste-disposal-coach",
+  "private": true,
+  "type": "module",
+  "description": "Point a camera at an item and get told which bin it goes in."
+}

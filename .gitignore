@@ -1,0 +1,8 @@
+node_modules/
+.vercel/
+__pycache__/
+*.pt
+python/weights/
+python/setup_log.txt
+python/run_log.txt
+.env*

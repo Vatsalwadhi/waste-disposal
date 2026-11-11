@@ -1,0 +1,4 @@
+ultralytics>=8.3
+opencv-python
+numpy
+clip @ https://github.com/ultralytics/CLIP/archive/refs/heads/main.zip

@@ -1,0 +1,69 @@
+{
+  "_readme": "Small rules database. 'items' says what the detector looks for; 'regions' says where each item goes. A region only lists what differs from 'default'. The regional profiles are illustrative starting points: confirm them against your own municipality's published list before relying on them.",
+
+  "items": {
+    "plastic_bottle":  {"label": "Plastic bottle",    "prompts": ["plastic bottle", "water bottle"],            "coco": ["bottle"], "check_residue": false},
+    "glass_bottle":    {"label": "Glass bottle/jar",  "prompts": ["glass bottle", "glass jar"],                 "coco": [],         "check_residue": false},
+    "metal_can":       {"label": "Metal can",         "prompts": ["aluminum can", "soda can", "tin can"],       "coco": [],         "check_residue": false},
+    "cardboard":       {"label": "Cardboard",         "prompts": ["cardboard box", "pizza box"],                "coco": [],         "check_residue": true},
+    "paper":           {"label": "Paper",             "prompts": ["newspaper", "sheet of paper"],               "coco": ["book"],   "check_residue": true},
+    "paper_cup":       {"label": "Disposable cup",    "prompts": ["paper cup", "disposable coffee cup"],        "coco": ["cup"],    "check_residue": false},
+    "food_container":  {"label": "Food container",    "prompts": ["plastic food container", "takeout container"], "coco": ["bowl"], "check_residue": true},
+    "carton":          {"label": "Drink carton",      "prompts": ["milk carton", "juice carton"],               "coco": [],         "check_residue": false},
+    "plastic_bag":     {"label": "Plastic bag",       "prompts": ["plastic bag"],                               "coco": [],         "check_residue": false},
+    "snack_wrapper":   {"label": "Snack wrapper",     "prompts": ["chip bag", "candy wrapper"],                 "coco": [],         "check_residue": false},
+    "food_scrap":      {"label": "Food scraps",       "prompts": ["banana peel", "fruit peel", "food scraps"],
+                        "coco": ["banana", "apple", "orange", "broccoli", "carrot", "sandwich", "pizza", "hot dog", "donut", "cake"],
+                        "check_residue": false}
+  },
+
+  "regions": {
+    "default": {
+      "name": "Generic three-bin system",
+      "bins": {"recyclable": "Recycling bin", "compostable": "Compost / organics bin", "general": "General waste bin"},
+      "rules": {
+        "plastic_bottle": {"clean": {"category": "recyclable", "tip": "Empty it, rinse quickly, crush it and screw the cap back on."}},
+        "glass_bottle":   {"clean": {"category": "recyclable", "tip": "Empty and rinse. Keep it whole; metal lids go with metals."}},
+        "metal_can":      {"clean": {"category": "recyclable", "tip": "Empty and rinse. Crush it only if your collector allows."}},
+        "cardboard":      {"clean": {"category": "recyclable", "tip": "Flatten it, remove tape and plastic, and keep it dry."},
+                           "contaminated": {"category": "general", "tip": "Grease ruins paper recycling. Tear off any clean part to recycle; the soiled part is general waste."}},
+        "paper":          {"clean": {"category": "recyclable", "tip": "Keep it dry and flat. No need to remove staples."},
+                           "contaminated": {"category": "general", "tip": "Food-soiled paper cannot be recycled. Put it in general waste."}},
+        "paper_cup":      {"clean": {"category": "general", "tip": "Most disposable cups have a plastic lining that paper mills reject. Empty the liquid first."}},
+        "food_container": {"clean": {"category": "recyclable", "tip": "Clean and dry, lid off."},
+                           "contaminated": {"category": "general", "tip": "Scrape and rinse it and it becomes recyclable. If it will not come clean, general waste."}},
+        "carton":         {"clean": {"category": "recyclable", "tip": "Empty, rinse and flatten."}},
+        "plastic_bag":    {"clean": {"category": "general", "tip": "Film jams sorting machines. Use a store drop-off point if one exists, otherwise general waste."}},
+        "snack_wrapper":  {"clean": {"category": "general", "tip": "Multi-layer plastic and foil cannot be separated for recycling."}},
+        "food_scrap":     {"clean": {"category": "compostable", "tip": "Remove any sticker or packaging first."}}
+      }
+    },
+
+    "india": {
+      "name": "India - SWM Rules 2026 four-stream (wet / dry / sanitary / special care)",
+      "bins": {"recyclable": "Dry waste bin", "compostable": "Wet waste bin", "general": "Dry waste bin (non-recyclable)"},
+      "rules": {
+        "cardboard":      {"clean": {"category": "recyclable", "tip": "Flatten it and keep it dry so the kabadiwala or MRF can take it."},
+                           "contaminated": {"category": "general", "tip": "Scrape leftover food into wet waste. The greasy board goes with dry waste as non-recyclable."}},
+        "paper":          {"clean": {"category": "recyclable", "tip": "Keep it dry and bundle it."},
+                           "contaminated": {"category": "compostable", "tip": "Food-soiled paper and tissue is usually taken with wet waste. Check your local body's list."}},
+        "food_container": {"clean": {"category": "recyclable", "tip": "Clean and dry."},
+                           "contaminated": {"category": "general", "tip": "Empty the food into wet waste and rinse. Unrinsed, it spoils the rest of the dry waste."}},
+        "plastic_bag":    {"clean": {"category": "general", "tip": "Keep it clean and dry with dry waste."}},
+        "snack_wrapper":  {"clean": {"category": "general", "tip": "Multi-layer plastic goes with dry waste, never wet."}},
+        "paper_cup":      {"clean": {"category": "general", "tip": "Empty the liquid, then dry waste."}}
+      }
+    },
+
+    "organics_city": {
+      "name": "City with an organics bin that accepts food-soiled paper",
+      "bins": {"recyclable": "Recycling bin", "compostable": "Organics bin", "general": "Landfill bin"},
+      "rules": {
+        "cardboard":      {"clean": {"category": "recyclable", "tip": "Flatten it and keep it dry."},
+                           "contaminated": {"category": "compostable", "tip": "Greasy cardboard is accepted for composting here. Remove any plastic liner."}},
+        "paper":          {"clean": {"category": "recyclable", "tip": "Keep it dry."},
+                           "contaminated": {"category": "compostable", "tip": "Food-soiled paper is compostable here."}}
+      }
+    }
+  }
+}
